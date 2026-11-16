@@ -10,6 +10,11 @@ one request per collection). The app reads it line by line, so it never holds a 
 
 `hadith-index.json` lists every bundle with its size and sha256; the app verifies each download against it.
 
+Each tafsir becomes `tafsir-<slug>.ndjson.gz` (release `tafsir-v1`), indexed by `tafsir-index.json`:
+
+    line 1      {"id", "name_ar", "name_en", "author_ar", "author_en", "death_years", "surahs": [{"n", "ayahs"}]}
+    line 2..n   {"s": <surah>, "ayahs": [{"a", "text"}]}   (a surah may span several lines; each line stays under 1 MB)
+
 Usage: python3 tools/bundle.py [--out dist]
 """
 import argparse
@@ -74,6 +79,41 @@ def bundle_collection(root, cid, out):
     }
 
 
+def gzip_bytes(raw):
+    buffer = io.BytesIO()
+    with gzip.GzipFile(fileobj=buffer, mode="wb", compresslevel=9, mtime=0) as gz:
+        gz.write(raw)
+    return buffer.getvalue()
+
+
+def bundle_tafsir(root, slug, out):
+    base = os.path.join(root, "tafsir", slug)
+    meta = read(os.path.join(base, "meta.json"))
+    header = {k: meta.get(k) for k in ("id", "name_ar", "name_en", "author_ar", "author_en", "death_years")}
+    header["surahs"] = [{"n": s["n"], "ayahs": s["ayahs"]} for s in meta["surahs"]]
+    lines = [dumps(header)]
+    for surah in meta["surahs"]:
+        for part in surah["files"]:
+            lines.append(dumps({"s": surah["n"], "ayahs": read(os.path.join(base, part["f"]))}))
+    raw = ("\n".join(lines) + "\n").encode("utf-8")
+    data = gzip_bytes(raw)
+    name = f"tafsir-{slug}.ndjson.gz"
+    with open(os.path.join(out, name), "wb") as f:
+        f.write(data)
+    return {
+        "id": slug,
+        "type": "tafsir",
+        "name_ar": meta["name_ar"],
+        "name_en": meta["name_en"],
+        "author_ar": meta.get("author_ar"),
+        "author_en": meta.get("author_en"),
+        "asset": name,
+        "size": len(data),
+        "raw_bytes": len(raw),
+        "sha256": hashlib.sha256(data).hexdigest(),
+    }
+
+
 def main():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -92,7 +132,14 @@ def main():
     }
     with open(os.path.join(args.out, "hadith-index.json"), "w", encoding="utf-8") as f:
         f.write(dumps(result))
-    for c in collections:
+    order_t = ["ar-tafsir-ibn-kathir", "ar-tafsir-al-tabari", "ar-tafseer-al-qurtubi", "ar-tafsir-al-baghawi",
+               "ar-tafsir-al-jalalayn"]
+    slugs = [c["id"] for c in index["collections"] if c["type"] == "tafsir"]
+    slugs.sort(key=lambda i: order_t.index(i) if i in order_t else len(order_t))
+    tafsirs = [bundle_tafsir(root, slug, args.out) for slug in slugs]
+    with open(os.path.join(args.out, "tafsir-index.json"), "w", encoding="utf-8") as f:
+        f.write(dumps({"schema": SCHEMA_VERSION, "generated": result["generated"], "collections": tafsirs}))
+    for c in collections + tafsirs:
         print(f"{c['asset']}: {c['size']} bytes gzip, {c['raw_bytes']} raw")
 
 
