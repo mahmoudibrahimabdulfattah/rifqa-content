@@ -6,6 +6,7 @@ authors and maintainers.
 | Content | Source repository | License |
 |---|---|---|
 | Hadith: Arabic text, English text and grades (Bukhari, Muslim, Abu Dawud, al-Tirmidhi, an-Nasa'i, Ibn Majah, Malik) | [fawazahmed0/hadith-api](https://github.com/fawazahmed0/hadith-api), read through jsDelivr (`@1`) | The Unlicense (public domain) |
+| Hadith book (kitab) names in Arabic | Matched by English name from [AhmedBaset/hadith-json](https://github.com/AhmedBaset/hadith-json) (`db/by_book/the_9_books`, data from sunnah.com) | Names given by the classical authors (public domain facts); the repository states no licence and only the names are used |
 | Tafsir: Ibn Kathir, al-Baghawi, al-Tabari, al-Qurtubi, al-Jalalayn (Arabic) | [spa5k/tafsir_api](https://github.com/spa5k/tafsir_api), read through jsDelivr (`@main`); the texts originate from the [Quranic Universal Library](https://qul.tarteel.ai) and quran.com | MIT License for the repository; the tafsir texts are works of authors who died centuries ago (public domain) |
 
 Hadith grades are the per-scholar grades carried by the hadith-api editions (for example al-Albani, Zubair Ali Zai).
